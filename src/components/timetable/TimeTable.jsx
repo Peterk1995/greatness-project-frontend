@@ -1,6 +1,6 @@
 // TimeTable.jsx
 import React, { useState, useEffect } from 'react';
-import { timeSlotService } from '../../services/api';
+import { timeSlotService } from '../../services/timetable/api';
 import { Editor } from './Editor';
 import { EventDetails } from './EventDetails';
 import { Clock, ChevronRight } from 'lucide-react';

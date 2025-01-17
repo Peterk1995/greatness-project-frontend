@@ -1,13 +1,25 @@
-// src/services/api.js
+// services/api.js
 import axios from 'axios';
 
 const api = axios.create({
   baseURL: 'http://localhost:8000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  }
 });
 
-export const timeSlotService = {
-  getAll: () => api.get('/timeslots/'),
-  create: (data) => api.post('/timeslots/', data),
-  update: (id, data) => api.put(`/timeslots/${id}/`, data),
-  delete: (id) => api.delete(`/timeslots/${id}/`),
-};
+// Add request interceptor
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Token ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+export default api;
