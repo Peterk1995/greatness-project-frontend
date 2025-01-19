@@ -1,49 +1,78 @@
-// App.jsx
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { TimeTable } from './components/timetable/TimeTable';
+// App.js
+import React, { useState } from 'react';
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  Navigate,
+  Link
+} from 'react-router-dom';
+import {
+  Trophy,
+  Calendar,
+  Shield,
+  Sword,
+  Map
+} from 'lucide-react';
+
+// Components
+import { TaskList } from './components/tasks/TaskList';
+import TimeTable from './components/timetable/TimeTable';
 import { Login } from './components/auth/Login';
 import { Register } from './components/auth/Register';
 import VerifyEmail from './components/auth/VerifyEmail';
 import RegistrationConfirmation from './components/auth/RegistrationConfirmation';
-import { authService } from './services/auth';
+import { CampaignCreation } from './components/campaigns/CampaignCreation';
+import { CampaignOverview } from './components/campaigns/CampaignOverview';
+import { CampaignList } from './components/campaigns/CampaignList';
+import CampaignDetail from './components/campaigns/CampaignDetail';
+import Navigation from './components/navigation/Navigation'; // New import for Navigation
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+// Auth Context
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      authService.validateToken()
-        .then(response => {
-          setUser({ username: 'Placeholder', id: response.data.user_id });
-        })
-        .catch(error => {
-          console.error('Token validation failed:', error);
-          localStorage.removeItem('token');
-          setUser(null);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    } else {
-      setIsLoading(false);
+// Services
+import { campaignService } from './services/campaignService';
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-black">
+        <div className="flex flex-col items-center">
+          <Shield className="w-16 h-16 text-yellow-400 animate-pulse" />
+          <div className="mt-4 text-yellow-400 font-bold">
+            Preparing Your Command Center...
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  return user ? children : <Navigate to="/login" replace />;
+};
+
+// Main App Content Component
+function AppContent() {
+  const { user, loading, logout } = useAuth();
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+
+  const handleSaveCampaign = async (campaignData) => {
+    try {
+      const response = await campaignService.create({
+        ...campaignData,
+        status: 'ongoing'
+      });
+      console.log('Campaign created successfully:', response.data);
+      setShowCampaignModal(false);
+    } catch (error) {
+      console.error('Error creating campaign:', error);
     }
-  }, []);
-
-  const handleAuthSuccess = (userData) => {
-    setUser(userData);
   };
 
-  const handleLogout = () => {
-    authService.logout();
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('tempToken');
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-black">
         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
@@ -52,91 +81,112 @@ function App() {
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-100">
-        <Routes>
-          {/* Public Routes */}
-          <Route 
-            path="/login" 
-            element={
-              !user ? (
-                <Login onLoginSuccess={handleAuthSuccess} />
-              ) : (
-                <Navigate to="/app" replace />
-              )
-            } 
-          />
+    <div className="min-h-screen bg-gray-100">
+      {user && (
+        <Navigation
+          user={user}
+          onLogout={logout}
+          onShowCampaignModal={() => setShowCampaignModal(true)}
+        />
+      )}
 
-          <Route 
-            path="/register" 
-            element={
-              !user ? (
-                <Register onRegisterSuccess={handleAuthSuccess} />
-              ) : (
-                <Navigate to="/app" replace />
-              )
-            } 
-          />
+      <Routes>
+        {/* Public Routes */}
+        <Route
+          path="/login"
+          element={!user ? <Login /> : <Navigate to="/app" replace />}
+        />
+        <Route
+          path="/register"
+          element={!user ? <Register /> : <Navigate to="/app" replace />}
+        />
+        <Route
+          path="/registration-confirmation"
+          element={<RegistrationConfirmation />}
+        />
+        <Route
+          path="/email-verification/:key"
+          element={<VerifyEmail />}
+        />
 
-          <Route 
-            path="/registration-confirmation" 
-            element={
-              !user ? (
-                <RegistrationConfirmation />
-              ) : (
-                <Navigate to="/app" replace />
-              )
-            } 
-          />
-
-          <Route 
-            path="/email-verification/:key" 
-            element={<VerifyEmail />} 
-          />
-
-          {/* Protected Routes */}
-          <Route
-            path="/app"
-            element={
-              user ? (
-                <div className="min-h-screen bg-gray-100">
-                  <nav className="bg-white shadow-sm">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                      <div className="flex justify-between h-16">
-                        <div className="flex items-center">
-                          <h1 className="text-xl font-bold text-gray-900">
-                            Imperial Organizer
-                          </h1>
-                        </div>
-                        <div className="flex items-center">
-                          <button
-                            onClick={handleLogout}
-                            className="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                          >
-                            Logout
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </nav>
-                  <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {/* Protected Routes */}
+        <Route
+          path="/app"
+          element={
+            <ProtectedRoute>
+              <div className="min-h-screen bg-gray-100">
+                <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                  <CampaignOverview />
+                  <div className="mt-6">
                     <TimeTable />
-                  </main>
-                </div>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
+                  </div>
+                </main>
+              </div>
+            </ProtectedRoute>
+          }
+        />
 
-          {/* Default Route */}
-          <Route
-            path="/"
-            element={<Navigate to={user ? "/app" : "/login"} replace />}
+        <Route
+          path="/campaigns"
+          element={
+            <ProtectedRoute>
+              <div className="min-h-screen bg-gray-100 p-6">
+                <CampaignList />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/campaigns/:id"
+          element={
+            <ProtectedRoute>
+              <div className="min-h-screen bg-gray-100 p-6">
+                <CampaignDetail />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/tasks"
+          element={
+            <ProtectedRoute>
+              <div className="min-h-screen bg-gray-100 p-6">
+                <TaskList />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Default Route */}
+        <Route
+          path="/"
+          element={<Navigate to={user ? '/app' : '/login'} replace />}
+        />
+      </Routes>
+      
+      {/* Campaign Modal */}
+      {showCampaignModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <CampaignCreation
+            onSave={handleSaveCampaign}
+            onClose={() => setShowCampaignModal(false)}
           />
-        </Routes>
-      </div>
-    </Router>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Root App Component with Providers
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
   );
 }
 

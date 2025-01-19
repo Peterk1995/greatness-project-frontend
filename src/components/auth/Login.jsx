@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom'; // Import Link
-import { authService } from '../../services/auth';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
-export const Login = ({ onLoginSuccess }) => {
+export const Login = () => {
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,13 +18,12 @@ export const Login = ({ onLoginSuccess }) => {
     setError('');
   
     try {
-      const response = await authService.login(credentials);
-      onLoginSuccess(response.data.user);
+      await login(credentials);  // Use the login function from auth context
+      navigate('/app');
     } catch (err) {
       const errorMessage = err.response?.data?.error || 'Invalid credentials';
       setError(errorMessage);
       
-      // If it's a verification error, show a different message
       if (errorMessage.includes('verify your email')) {
         setError('Please check your email and verify your account before logging in.');
       }
@@ -98,7 +99,6 @@ export const Login = ({ onLoginSuccess }) => {
               {isLoading ? 'Entering...' : 'Enter'}
             </button>
 
-            {/* Use Link instead of button */}
             <Link to="/register" className="text-sm text-blue-600 hover:text-blue-500 transition-colors">
               Need an account? Register
             </Link>
