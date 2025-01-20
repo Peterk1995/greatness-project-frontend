@@ -19,13 +19,17 @@ import {
   startOfWeek,
   endOfWeek,
   startOfMonth,
-  endOfMonth
+  endOfMonth,
+  isBefore,
+  startOfDay,
+  isToday,
+  parse,
+  parseISO,
+  isValid
 } from 'date-fns';
 import api from '../../services/api';
 
-//
 // StrategicDatePicker Component
-//
 const StrategicDatePicker = ({
   onDateSelect,
   selectedDate,
@@ -33,36 +37,6 @@ const StrategicDatePicker = ({
   setRecurrencePattern,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-
-  const navigateMonth = (direction) => {
-    setCurrentMonth((prevMonth) => addMonths(prevMonth, direction));
-  };
-
-  // Generate calendar dates for the current month view.
-  const generateCalendarDates = () => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-
-    const calendarDays = [];
-    let currentDay = startDate;
-
-    while (currentDay <= endDate) {
-      calendarDays.push({
-        date: currentDay,
-        dayName: format(currentDay, 'EEEE'),
-        shortDay: format(currentDay, 'E'),
-        fullDate: format(currentDay, 'yyyy-MM-dd'),
-        dayOfMonth: format(currentDay, 'd'),
-        month: format(currentDay, 'MMM'),
-        isCurrentMonth: format(currentDay, 'M') === format(monthStart, 'M'),
-      });
-      currentDay = addDays(currentDay, 1);
-    }
-
-    return calendarDays;
-  };
 
   // Greek day associations
   const greekDayMeanings = {
@@ -75,20 +49,42 @@ const StrategicDatePicker = ({
     Sun: { deity: 'Apollo', meaning: "Sun's Glory", icon: '☀️' },
   };
 
-  // Recurrence selection options
-  const recurrenceOptions = [
-    { id: 'none', label: 'Single Event', icon: Star },
-    { id: 'daily', label: 'Daily Training', icon: Sun },
-    { id: 'weekly', label: 'Weekly Council', icon: Repeat },
-    { id: 'monthly', label: 'Monthly Assembly', icon: Calendar },
-  ];
+  const generateCalendarDates = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+    const calendarDays = [];
+    let currentDay = startDate;
+
+    while (currentDay <= endDate) {
+      const dateStr = format(currentDay, 'yyyy-MM-dd');
+      calendarDays.push({
+        date: currentDay,
+        fullDate: dateStr,
+        shortDay: format(currentDay, 'E'),
+        dayOfMonth: format(currentDay, 'd'),
+        isCurrentMonth: format(currentDay, 'M') === format(monthStart, 'M'),
+        isToday: isToday(currentDay)
+      });
+      currentDay = addDays(currentDay, 1);
+    }
+    return calendarDays;
+  };
+
+  const isDateSelectable = (date) => {
+    const today = startOfDay(new Date());
+    const checkDate = startOfDay(date);
+    return !isBefore(checkDate, today);
+  };
 
   return (
     <div className="space-y-6">
       {/* Month Navigation */}
       <div className="flex items-center justify-between bg-gradient-to-r from-blue-900 to-blue-800 p-4 rounded-lg">
         <button
-          onClick={() => navigateMonth(-1)}
+          onClick={() => setCurrentMonth(prev => addMonths(prev, -1))}
           className="p-2 hover:bg-blue-700 rounded-full transition-colors"
         >
           <ChevronLeft className="w-5 h-5 text-blue-100" />
@@ -104,7 +100,7 @@ const StrategicDatePicker = ({
         </div>
 
         <button
-          onClick={() => navigateMonth(1)}
+          onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
           className="p-2 hover:bg-blue-700 rounded-full transition-colors"
         >
           <ChevronRight className="w-5 h-5 text-blue-100" />
@@ -118,66 +114,64 @@ const StrategicDatePicker = ({
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
             <div key={day} className="text-center p-2">
               <div className="font-bold text-blue-800">{day}</div>
-              <div className="text-xs text-blue-600">
-                {greekDayMeanings[day].deity}
-              </div>
-              <div className="text-xs text-blue-400">
-                {greekDayMeanings[day].icon}
-              </div>
+              <div className="text-xs text-blue-600">{greekDayMeanings[day].deity}</div>
+              <div className="text-xs text-blue-400">{greekDayMeanings[day].icon}</div>
             </div>
           ))}
 
           {/* Calendar Days */}
-          {generateCalendarDates().map((dateInfo) => (
-            <button
-              key={dateInfo.fullDate}
-              onClick={() => onDateSelect(dateInfo.fullDate, dateInfo.shortDay)}
-              disabled={new Date(dateInfo.fullDate) < new Date()}
-              className={`
-                relative p-3 rounded-lg border-2 transition-all
-                ${!dateInfo.isCurrentMonth ? 'opacity-50' : ''}
-                ${
-                  dateInfo.fullDate === selectedDate
-                    ? 'border-yellow-500 bg-yellow-50'
-                    : 'border-gray-200 hover:border-blue-200'
-                }
-                ${
-                  new Date(dateInfo.fullDate) < new Date()
-                    ? 'bg-gray-100 cursor-not-allowed'
-                    : 'hover:bg-blue-50'
-                }
-              `}
-            >
-              <div className="text-center">
-                <span className="text-sm font-medium text-gray-600">
+          {generateCalendarDates().map(dateInfo => {
+            const isSelectable = isDateSelectable(dateInfo.date);
+            return (
+              <button
+                key={dateInfo.fullDate}
+                onClick={() => {
+                  if (isSelectable) {
+                    console.log('Calendar selected:', {
+                      fullDate: dateInfo.fullDate,
+                      shortDay: dateInfo.shortDay
+                    });
+                    onDateSelect(dateInfo.fullDate, dateInfo.shortDay);
+                  }
+                }}
+                disabled={!isSelectable}
+                className={`
+                  relative p-3 rounded-lg border-2 transition-all
+                  ${!dateInfo.isCurrentMonth ? 'opacity-50' : ''}
+                  ${
+                    dateInfo.fullDate === format(selectedDate, 'yyyy-MM-dd')
+                      ? 'border-yellow-500 bg-yellow-50'
+                      : 'border-gray-200'
+                  }
+                  ${!isSelectable ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-blue-50'}
+                  ${dateInfo.isToday ? 'ring-2 ring-blue-500' : ''}
+                `}
+              >
+                <span className="text-sm font-medium text-gray-700">
                   {dateInfo.dayOfMonth}
                 </span>
-                {dateInfo.fullDate === format(new Date(), 'yyyy-MM-dd') && (
-                  <div className="absolute top-0 right-0 w-2 h-2 bg-green-500 rounded-full"></div>
-                )}
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Recurrence Pattern */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          Divine Pattern
-        </label>
+        <label className="block text-sm font-medium text-gray-700">Divine Pattern</label>
         <div className="grid grid-cols-2 gap-2">
-          {recurrenceOptions.map(({ id, label, icon: Icon }) => (
+          {[
+            { id: 'none', label: 'Single Event', icon: Star },
+            { id: 'daily', label: 'Daily Training', icon: Sun },
+            { id: 'weekly', label: 'Weekly Council', icon: Repeat },
+            { id: 'monthly', label: 'Monthly Assembly', icon: Calendar }
+          ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setRecurrencePattern(id)}
               className={`
                 p-3 rounded-lg border-2 flex items-center gap-2
-                ${
-                  recurrencePattern === id
-                    ? 'border-yellow-500 bg-yellow-50'
-                    : 'border-gray-200 hover:border-blue-200'
-                }
+                ${recurrencePattern === id ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200'}
               `}
             >
               <Icon className="w-4 h-4" />
@@ -186,25 +180,36 @@ const StrategicDatePicker = ({
           ))}
         </div>
       </div>
-
-      {/* Auspicious Wisdom Quote */}
-      <div className="text-center text-sm text-gray-500 italic">
-        {recurrencePattern === 'none'
-          ? '"Choose the most auspicious day for your endeavor"'
-          : '"In repetition, we find mastery and strength"'}
-      </div>
     </div>
   );
 };
 
-//
-// Editor Component
-//
 export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) => {
-  const [campaigns, setCampaigns] = useState([]);
+  // Initialize state with a formatted date string ("yyyy-MM-dd")
+  const [data, setData] = useState(() => {
+    const initialDate = eventData?.date
+      ? format(new Date(eventData.date), 'yyyy-MM-dd')
+      : format(new Date(), 'yyyy-MM-dd');
+    return {
+      name: eventData?.name || '',
+      startTime: eventData?.startTime || `${initialTime.toString().padStart(2, '0')}:00`,
+      endTime: eventData?.endTime || `${(initialTime + 1).toString().padStart(2, '0')}:00`,
+      description: eventData?.description || '',
+      importance: eventData?.importance || 'routine',
+      color: eventData?.color || 'bg-blue-200',
+      selectedDays: eventData?.selectedDays || [],
+      frequency: eventData?.frequency || 'once',
+      resources_needed: eventData?.resources_needed || '',
+      expected_outcome: eventData?.expected_outcome || '',
+      strategic_value: eventData?.strategic_value || '',
+      campaign: eventData?.campaign || '',
+      date: initialDate,
+    };
+  });
+  
   const [recurrencePattern, setRecurrencePattern] = useState('none');
+  const [campaigns, setCampaigns] = useState([]);
 
-  // Fetch campaigns on component mount
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
@@ -217,36 +222,38 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
     fetchCampaigns();
   }, []);
 
-  // Initialize component state
-  const [data, setData] = useState({
-    name: eventData?.name || '',
-    startTime: eventData?.startTime || `${initialTime.toString().padStart(2, '0')}:00`,
-    endTime: eventData?.endTime || `${(initialTime + 1).toString().padStart(2, '0')}:00`,
-    description: eventData?.description || '',
-    importance: eventData?.importance || 'routine',
-    color: eventData?.color || 'bg-blue-200',
-    selectedDays: eventData?.selectedDays || [],
-    frequency: eventData?.frequency || 'once',
-    resources_needed: eventData?.resources_needed || '',
-    expected_outcome: eventData?.expected_outcome || '',
-    strategic_value: eventData?.strategic_value || '',
-    campaign: eventData?.campaign || '',
-    date: eventData?.date || new Date().toISOString().split('T')[0],
-  });
-
-  // Update date and selectedDays when a day is chosen
+  // Handle date selection with proper parsing
   const handleDateSelect = (fullDate, dayShort) => {
-    setData((prev) => ({
+    console.log("=== Date Selection Debug ===");
+    console.log("Selected date string:", fullDate);
+    console.log("Selected day:", dayShort);
+
+    // Parse the selected date string into a Date object
+    const parsedDate = parse(fullDate, 'yyyy-MM-dd', new Date());
+    if (!isValid(parsedDate)) {
+      console.error("Failed to parse selected date:", fullDate);
+      return;
+    }
+
+    // Format the parsed date back into a string for storage
+    const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+    console.log("Updated data state:", {
+      ...data,
+      date: formattedDate,
+      selectedDays: [dayShort],
+    });
+
+    setData(prev => ({
       ...prev,
-      date: fullDate,
+      date: formattedDate,
       selectedDays: [dayShort],
     }));
   };
 
-  // Modified handleSubmit using the new specifications with debug logs
   const handleSubmit = () => {
-    console.log('Submit button clicked'); // Debug log 1
+    console.log('Submit button clicked');
 
+    // Validate required fields
     if (!data.name.trim()) {
       alert('Every conquest needs a name, my lord');
       return;
@@ -256,9 +263,10 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
       return;
     }
 
-    console.log('Validation passed'); // Debug log 2
+    console.log('=== Submit Debug ===');
+    console.log('Form data:', data);
 
-    // Convert time strings to minutes
+    // Helper: Convert time strings to minutes
     const convertTimeToMinutes = (timeStr) => {
       const [hours, minutes] = timeStr.split(':').map(Number);
       return (hours * 60) + minutes;
@@ -268,9 +276,25 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
     const endMinutes = convertTimeToMinutes(data.endTime);
     const isOvernight = endMinutes < startMinutes;
 
-    console.log('Time conversion:', { startMinutes, endMinutes, isOvernight }); // Debug log 3
+    // Create a local Date object for data.date by appending "T00:00:00"
+    const selectedDate = new Date(`${data.date}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Ensure today's time is set to midnight
 
-    // Helper to get the next day for overnight events
+    // If the selected date is today, check that the start time is still in the future
+    if (selectedDate.getTime() === today.getTime()) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      console.log('Time validation:', { currentMinutes, startMinutes, isOvernight });
+      if (startMinutes < currentMinutes) {
+        alert(
+          "O mighty conqueror, the appointed hour for your command has already slipped away into legend. Rally your forces and select a forthcoming moment for victory!"
+        );
+        return;
+      }
+    }
+
+    // Helper: Get the next day for overnight events
     const getNextDay = (currentDay) => {
       const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const currentIndex = dayOrder.indexOf(currentDay);
@@ -280,7 +304,7 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
     // Create the time slot object
     const timeSlot = {
       name: data.name,
-      title: data.name, // For backward compatibility
+      title: data.name,
       description: data.description || '',
       importance: data.importance,
       start_day: data.selectedDays[0],
@@ -289,32 +313,32 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
       end_time: endMinutes,
       color: data.color,
       is_overnight: isOvernight,
-      frequency: recurrencePattern, // Use the recurrence pattern here
+      frequency: recurrencePattern,
       resources_needed: data.resources_needed || '',
       expected_outcome: data.expected_outcome || '',
       strategic_value: data.strategic_value || '',
       campaign: data.campaign || null,
-      date: data.date,
-      recurrence_pattern: recurrencePattern
+      date: data.date, // Send the stored date string as-is
+      recurrence_pattern: recurrencePattern,
     };
 
-    console.log('Submitting time slot:', timeSlot); // Debug log 4
+    console.log('Submitting time slot:', timeSlot);
 
     if (typeof onSave !== 'function') {
-      console.error('onSave is not a function:', onSave); // Debug log 5
+      console.error('onSave is not a function:', onSave);
       return;
     }
 
     try {
       onSave([timeSlot]);
-      console.log('onSave called successfully'); // Debug log 6
+      console.log('onSave called successfully');
     } catch (error) {
-      console.error('Error in onSave:', error); // Debug log 7
+      console.error('Error in onSave:', error);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold">Plan Your Empire's Next Move</h3>
@@ -327,9 +351,7 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
           {/* Title & Time Selection */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">
-                Title of Engagement
-              </label>
+              <label className="block text-sm font-medium mb-1">Title of Engagement</label>
               <input
                 type="text"
                 value={data.name}
@@ -339,9 +361,7 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Commencement
-              </label>
+              <label className="block text-sm font-medium mb-1">Commencement</label>
               <input
                 type="time"
                 value={data.startTime}
@@ -350,9 +370,7 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Conclusion
-              </label>
+              <label className="block text-sm font-medium mb-1">Conclusion</label>
               <input
                 type="time"
                 value={data.endTime}
@@ -362,19 +380,17 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
             </div>
           </div>
 
-          {/* Strategic Date Picker with Month Navigation and Recurrence */}
+          {/* Strategic Date Picker */}
           <StrategicDatePicker
             onDateSelect={handleDateSelect}
-            selectedDate={data.date}
+            selectedDate={data.date ? new Date(`${data.date}T00:00:00`) : new Date()}
             recurrencePattern={recurrencePattern}
             setRecurrencePattern={setRecurrencePattern}
           />
 
           {/* Imperial Importance Selection */}
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Imperial Importance
-            </label>
+            <label className="block text-sm font-medium mb-2">Imperial Importance</label>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: 'critical', label: 'Critical for Empire', icon: Shield, color: 'bg-red-200' },
@@ -397,9 +413,7 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
 
           {/* Campaign Selection */}
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Align with Grand Campaign
-            </label>
+            <label className="block text-sm font-medium mb-2">Align with Grand Campaign</label>
             <select
               value={data.campaign || ''}
               onChange={(e) => setData({ ...data, campaign: e.target.value })}
@@ -416,9 +430,7 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
 
           {/* Strategic Details */}
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Strategic Details
-            </label>
+            <label className="block text-sm font-medium mb-1">Strategic Details</label>
             <textarea
               value={data.description}
               onChange={(e) => setData({ ...data, description: e.target.value })}
@@ -430,9 +442,7 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
           {/* Resources and Outcomes */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Required Resources
-              </label>
+              <label className="block text-sm font-medium mb-1">Required Resources</label>
               <textarea
                 value={data.resources_needed}
                 onChange={(e) => setData({ ...data, resources_needed: e.target.value })}
@@ -442,9 +452,7 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Expected Outcome
-              </label>
+              <label className="block text-sm font-medium mb-1">Expected Outcome</label>
               <textarea
                 value={data.expected_outcome}
                 onChange={(e) => setData({ ...data, expected_outcome: e.target.value })}
@@ -467,10 +475,7 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
             Retreat
           </button>
           <button
-            onClick={() => {
-              console.log('Decree It button clicked');
-              handleSubmit();
-            }}
+            onClick={handleSubmit}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
           >
             Decree It

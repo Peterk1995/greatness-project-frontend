@@ -34,7 +34,7 @@ const Navigation = ({ user, onLogout, onShowCampaignModal }) => {
               className="inline-flex items-center px-4 py-2 border border-blue-400/30 text-sm font-medium rounded-md text-blue-300 bg-blue-900 hover:bg-blue-800 transition-colors shadow-sm"
             >
               <Calendar className="w-5 h-5 mr-2" />
-              Battle Schedule
+              Scheduled Battles
             </Link>
 
             <Link
