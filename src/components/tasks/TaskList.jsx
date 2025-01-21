@@ -66,41 +66,28 @@ export function TaskList() {
     // Ensure task.date is parsed as a Date object (local midnight)
     const taskDate = task.date instanceof Date ? task.date : new Date(task.date + 'T00:00:00');
   
-    console.log('=== Task Progress Debug ===');
-    console.log('Task:', task.title);
-    console.log('Current time:', now.toLocaleString());
-    console.log('Task date:', taskDate.toLocaleString());
-    console.log('Task start time (minutes):', task.start_time);
-    console.log('Task end time (minutes):', task.end_time);
-  
     // Create date-only objects for comparison
     const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
   
-    console.log('Comparing dates:');
-    console.log('Now date:', nowDate.toLocaleDateString());
-    console.log('Task date:', taskDateOnly.toLocaleDateString());
   
     // Calculate current minutes for today's comparison
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    console.log('Current minutes:', currentMinutes);
   
     // If task is completed, return 100%
     if (task.status === 'completed') {
-      console.log('Task status is completed, returning 100');
       return 100;
     }
   
     // For future dates, return 'awaiting'
     if (taskDateOnly.getTime() > nowDate.getTime()) {
-      console.log('Task is in future, returning awaiting');
       return 'awaiting';
     }
   
-    // For past dates that weren't completed, return 'failed'
+    // For past dates that weren't completed, mark as awaiting completion
     if (taskDateOnly.getTime() < nowDate.getTime()) {
-      console.log('Task is in past, returning failed');
-      return 'failed';
+      console.log('Task is in past, returning awaiting_completion');
+      return 'awaiting_completion';
     }
   
     // For today's tasks
@@ -469,14 +456,14 @@ export function TaskList() {
                       <p className="text-xs text-gray-200">{task.description}</p>
                     </div>
                   </div>
-                  {task.status !== 'completed' && typeof progress === 'number' && progress === 100 && (
-                    <button
-                      onClick={() => { setSelectedTask(task); setShowCompletionModal(true); }}
-                      className="text-xs bg-blue-600 text-white px-3 py-1 rounded shadow"
-                    >
-                      Complete
-                    </button>
-                  )}
+                  {task.status !== 'completed' && progress === 'awaiting_completion' && (
+  <button
+    onClick={() => { setSelectedTask(task); setShowCompletionModal(true); }}
+    className="text-xs bg-blue-600 text-white px-3 py-1 rounded shadow"
+  >
+    Complete
+  </button>
+)}
                   {task.status !== 'completed' && typeof progress === 'number' && progress > 0 && progress < 100 && (
                     <div className="text-xs text-green-600 italic">
                       "Alexander: 'Advance boldly, for victory awaits!'"

@@ -4,8 +4,7 @@ import {
   BrowserRouter as Router,
   Route,
   Routes,
-  Navigate,
-  Link
+  Navigate
 } from 'react-router-dom';
 import {
   Trophy,
@@ -23,10 +22,10 @@ import { Register } from './components/auth/Register';
 import VerifyEmail from './components/auth/VerifyEmail';
 import RegistrationConfirmation from './components/auth/RegistrationConfirmation';
 import { CampaignCreation } from './components/campaigns/CampaignCreation';
-import { CampaignOverview } from './components/campaigns/CampaignOverview';
+import { Dashboard } from './components/dashboard/Dashboard';
 import { CampaignList } from './components/campaigns/CampaignList';
 import CampaignDetail from './components/campaigns/CampaignDetail';
-import Navigation from './components/navigation/Navigation'; // New import for Navigation
+import Navigation from './components/navigation/Navigation';
 
 // Auth Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -61,14 +60,27 @@ function AppContent() {
 
   const handleSaveCampaign = async (campaignData) => {
     try {
+      // Debug log to inspect campaign data before saving
+      console.log('Creating campaign with data:', campaignData);
+      
+      // Create the campaign using the service (ensuring the status is "ongoing")
       const response = await campaignService.create({
         ...campaignData,
         status: 'ongoing'
       });
       console.log('Campaign created successfully:', response.data);
+      
+      // Close the campaign modal
       setShowCampaignModal(false);
+
+      // If on the dashboard, refresh the page to update the campaign list
+      if (window.location.pathname === '/app') {
+        window.location.reload();
+      }
+      
     } catch (error) {
       console.error('Error creating campaign:', error);
+      alert('Failed to create campaign. Please try again.');
     }
   };
 
@@ -116,7 +128,7 @@ function AppContent() {
             <ProtectedRoute>
               <div className="min-h-screen bg-gray-100">
                 <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                  <CampaignOverview />
+                  <Dashboard />
                   <div className="mt-6">
                     <TimeTable />
                   </div>

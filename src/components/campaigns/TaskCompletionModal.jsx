@@ -23,6 +23,7 @@ export default function TaskCompletionModal({ task, campaigns, onSubmit, onClose
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [xpGained, setXpGained] = useState(null);
+  const [xpBreakdown, setXpBreakdown] = useState(null);
 
   // Calculate time spent in the time slot
   const timeSpent = useMemo(() => {
@@ -42,20 +43,40 @@ export default function TaskCompletionModal({ task, campaigns, onSubmit, onClose
     e.preventDefault();
     setLoading(true);
     try {
+      // Calculate duration as the Greeks would - in sunlit hours!
+      const duration = task.end_time - task.start_time;
+      
+      // Send forth our proclamation to the gods (backend)!
       const result = await taskService.complete(task.id, {
         quality_rating: quality,
         completion_notes: notes,
         campaign_id: task.campaign,
+        duration_minutes: duration  // Add this crucial measure of time!
       });
-
+  
+      // Log the oracle's response
+      console.log('The Oracle proclaims:', result.data);
+  
+      // Show the divine rewards!
       setXpGained(result.data.xp_gained);
+      setXpBreakdown({
+        conquest_xp: result.data.xp_breakdown?.conquest_xp || 0,
+        cultural_xp: result.data.xp_breakdown?.cultural_xp || 0,
+        wisdom_xp: result.data.xp_breakdown?.wisdom_xp || 0,
+        legacy_xp: result.data.xp_breakdown?.legacy_xp || 0
+      });
+  
+      // Let the scrolls be updated!
+      await onSubmit(result.data);
       
+      // A moment to savor victory!
       setTimeout(() => {
-        onSubmit(result.data);
         onClose();
-      }, 1000);
+      }, 2000);  // Give time to see the XP gained!
+  
     } catch (error) {
-      console.error('Error completing task:', error);
+      console.error('The Fates conspire against us:', error);
+      alert('By Hades! Something went wrong. The scribes will investigate.');
     } finally {
       setLoading(false);
     }
@@ -66,7 +87,6 @@ export default function TaskCompletionModal({ task, campaigns, onSubmit, onClose
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        {/* Greek-styled header */}
         <div className={`bg-gradient-to-r ${
           isFailure ? 'from-red-700 to-red-800' : 'from-blue-700 to-blue-800'
         } text-white px-6 py-4 rounded-t-lg border-b-4 border-yellow-500`}>
@@ -74,7 +94,6 @@ export default function TaskCompletionModal({ task, campaigns, onSubmit, onClose
             <Trophy className="w-6 h-6" />
             {isFailure ? 'Record Defeat' : 'Record Victory'}
           </h2>
-          {/* Time spent display */}
           <div className="flex items-center gap-2 text-sm text-gray-200 mt-1">
             <Clock className="w-4 h-4" />
             Time in battle: {timeSpent}
@@ -82,13 +101,11 @@ export default function TaskCompletionModal({ task, campaigns, onSubmit, onClose
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Greek-styled quote */}
           <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-yellow-500 italic">
             <p className="text-gray-700">"{quote.quote}"</p>
             <p className="text-sm text-gray-500 mt-1">— {quote.author}</p>
           </div>
 
-          {/* Quality Selection */}
           <div className="space-y-4">
             <label className="block text-gray-700 font-medium">Outcome Quality</label>
             <div className="grid grid-cols-1 gap-3">
@@ -118,7 +135,6 @@ export default function TaskCompletionModal({ task, campaigns, onSubmit, onClose
             </div>
           </div>
 
-          {/* Notes with Greek styling */}
           <div>
             <label className="block text-gray-700 font-medium mb-2">
               {isFailure ? 'Record of Defeat' : 'Battle Notes'} (Optional)
@@ -134,14 +150,28 @@ export default function TaskCompletionModal({ task, campaigns, onSubmit, onClose
             />
           </div>
 
-          {/* XP Display */}
-          {xpGained !== null && (
-            <div className="text-center font-bold text-2xl text-blue-600">
-              +{xpGained} XP
+          {xpGained !== null && xpBreakdown && (
+            <div className="space-y-2">
+              <div className="text-center font-bold text-2xl text-blue-600">
+                +{xpGained} Total XP
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {xpBreakdown.conquest_xp > 0 && (
+                  <div className="text-red-500">+{xpBreakdown.conquest_xp} Conquest</div>
+                )}
+                {xpBreakdown.cultural_xp > 0 && (
+                  <div className="text-blue-500">+{xpBreakdown.cultural_xp} Cultural</div>
+                )}
+                {xpBreakdown.wisdom_xp > 0 && (
+                  <div className="text-green-500">+{xpBreakdown.wisdom_xp} Wisdom</div>
+                )}
+                {xpBreakdown.legacy_xp > 0 && (
+                  <div className="text-purple-500">+{xpBreakdown.legacy_xp} Legacy</div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Actions with Greek styling */}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <button
               type="button"

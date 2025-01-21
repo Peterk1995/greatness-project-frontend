@@ -2,23 +2,24 @@ import React, { useState } from 'react';
 import { Scroll, Sword, Crown, Star, Trophy, Calendar, Target, Clock } from 'lucide-react';
 
 export const CampaignCreation = ({ onSave, onClose }) => {
+  // Initial state for the campaign
   const [campaign, setCampaign] = useState({
     title: '',
     description: '',
     difficulty: 'major',
     estimated_hours: '',
-    // Use today's date as initial, or modify as needed
     start_date: new Date().toISOString().split('T')[0],
     target_date: '',
     campaign_type: 'conquest'
   });
 
+  // Define available campaign types
   const CAMPAIGN_TYPES = [
     { 
       id: 'conquest', 
       label: 'Territorial Conquest', 
       icon: Sword,
-      description: 'Military campaigns and strategic victories'
+      description: 'Strategic victories and expansion of influence'
     },
     { 
       id: 'cultural', 
@@ -40,40 +41,108 @@ export const CampaignCreation = ({ onSave, onClose }) => {
     }
   ];
 
+  // Define difficulty levels (using an hour-based system)
   const DIFFICULTY_LEVELS = [
-    { 
-      id: 'legendary', 
-      label: 'Legendary Quest', 
-      xp: '100x XP',
+    {
+      id: 'legendary',
+      label: 'Legendary Ergon (ἔργον)',
+      description: 'A deed worthy of song! (100+ hṓrai)',
       color: 'bg-purple-100 border-purple-300'
     },
-    { 
-      id: 'epic', 
-      label: 'Epic Campaign', 
-      xp: '50x XP',
+    {
+      id: 'epic',
+      label: 'Epic Agon (ἀγών)',
+      description: 'A mighty contest! (50+ hṓrai)',
       color: 'bg-red-100 border-red-300'
     },
-    { 
-      id: 'major', 
-      label: 'Major Undertaking', 
-      xp: '25x XP',
+    {
+      id: 'major',
+      label: 'Great Ponos (πόνος)',
+      description: 'Requires significant toil (25+ hṓrai)',
       color: 'bg-yellow-100 border-yellow-300'
     },
-    { 
-      id: 'minor', 
-      label: 'Minor Quest', 
-      xp: '10x XP',
+    {
+      id: 'minor',
+      label: 'Swift Stadion (στάδιον)',
+      description: 'A short but intense effort (Up to 25 hṓrai)',
       color: 'bg-blue-100 border-blue-300'
     }
   ];
 
-  // 2) Called when user hits "Launch Campaign" or "Decree it" in your wording.
+  // New feature: Thresholds and default hours per difficulty.
+  const DIFFICULTY_THRESHOLDS = {
+    legendary: 100,  // 100+ hours
+    epic: 50,        // 50-99 hours
+    major: 25,       // 25-49 hours
+    minor: 0         // 0-24 hours
+  };
+
+  const defaultHours = {
+    legendary: 100,
+    epic: 50,
+    major: 25,
+    minor: 10
+  };
+
+  // Auto-set hours when a difficulty is selected
+  const handleDifficultySelect = (selectedDifficulty) => {
+    setCampaign({
+      ...campaign,
+      difficulty: selectedDifficulty,
+      estimated_hours: defaultHours[selectedDifficulty]
+    });
+  };
+
+  // Auto-adjust difficulty based on manually entered hours
+  const handleHoursChange = (hours) => {
+    const numHours = parseInt(hours, 10);
+    let newDifficulty = 'minor';
+
+    if (numHours >= DIFFICULTY_THRESHOLDS.legendary) {
+      newDifficulty = 'legendary';
+    } else if (numHours >= DIFFICULTY_THRESHOLDS.epic) {
+      newDifficulty = 'epic';
+    } else if (numHours >= DIFFICULTY_THRESHOLDS.major) {
+      newDifficulty = 'major';
+    }
+
+    setCampaign({
+      ...campaign,
+      estimated_hours: hours,
+      difficulty: newDifficulty
+    });
+  };
+
+  // Helper function for hours input description
+  const renderHoursHelp = () => (
+    <p className="text-sm text-gray-600 mt-1">
+      Your estimated hours directly determine campaign completion.{" "}
+      {campaign.difficulty === 'legendary' && 
+        "Perfect execution can accelerate progress by up to 20%."}
+    </p>
+  );
+
+  // Called when the user submits the form (e.g., "Decree It")
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({
-        ...campaign,
-        status: 'ongoing'  // ensure newly created campaign is "in progress"
-      });
+    console.log('Submitting campaign:', campaign);  // Debug log
+    
+    // Create the campaign data object
+    const campaignData = {
+      ...campaign,
+      status: 'ongoing',
+      // Ensure all required fields are included
+      title: campaign.title,
+      description: campaign.description,
+      campaign_type: campaign.campaign_type,
+      difficulty: campaign.difficulty,
+      estimated_hours: parseInt(campaign.estimated_hours),
+      start_date: campaign.start_date,
+      target_date: campaign.target_date
+    };
+  
+    // Call onSave with the campaign data
+    onSave(campaignData);
   };
 
   return (
@@ -157,11 +226,11 @@ export const CampaignCreation = ({ onSave, onClose }) => {
               Campaign Magnitude
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {DIFFICULTY_LEVELS.map(({ id, label, xp, color }) => (
+              {DIFFICULTY_LEVELS.map(({ id, label, description, color }) => (
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setCampaign({ ...campaign, difficulty: id })}
+                  onClick={() => handleDifficultySelect(id)}
                   className={`p-4 border-2 rounded-lg transition-all ${
                     campaign.difficulty === id
                       ? `${color} border-current`
@@ -169,7 +238,7 @@ export const CampaignCreation = ({ onSave, onClose }) => {
                   }`}
                 >
                   <div className="font-semibold">{label}</div>
-                  <div className="text-sm text-gray-600">{xp}</div>
+                  <div className="text-sm text-gray-600">{description}</div>
                 </button>
               ))}
             </div>
@@ -185,13 +254,13 @@ export const CampaignCreation = ({ onSave, onClose }) => {
               <input
                 type="number"
                 value={campaign.estimated_hours}
-                onChange={(e) =>
-                  setCampaign({ ...campaign, estimated_hours: e.target.value })
-                }
+                // Use handleHoursChange to auto-adjust difficulty based on the entered hours
+                onChange={(e) => handleHoursChange(e.target.value)}
                 className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="100"
                 required
               />
+              {renderHoursHelp()}
             </div>
             <div className="space-y-2">
               <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -239,7 +308,6 @@ export const CampaignCreation = ({ onSave, onClose }) => {
               className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-colors"
             >
               Decree It
-              {/* or "Launch Campaign" */}
             </button>
           </div>
         </form>

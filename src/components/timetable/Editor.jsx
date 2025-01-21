@@ -204,6 +204,8 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
       strategic_value: eventData?.strategic_value || '',
       campaign: eventData?.campaign || '',
       date: initialDate,
+      // NEW FIELD: Imperial Categorization
+      domain: eventData?.domain || 'conquest',
     };
   });
   
@@ -228,21 +230,13 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
     console.log("Selected date string:", fullDate);
     console.log("Selected day:", dayShort);
 
-    // Parse the selected date string into a Date object
     const parsedDate = parse(fullDate, 'yyyy-MM-dd', new Date());
     if (!isValid(parsedDate)) {
       console.error("Failed to parse selected date:", fullDate);
       return;
     }
 
-    // Format the parsed date back into a string for storage
     const formattedDate = format(parsedDate, 'yyyy-MM-dd');
-    console.log("Updated data state:", {
-      ...data,
-      date: formattedDate,
-      selectedDays: [dayShort],
-    });
-
     setData(prev => ({
       ...prev,
       date: formattedDate,
@@ -251,9 +245,6 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
   };
 
   const handleSubmit = () => {
-    console.log('Submit button clicked');
-
-    // Validate required fields
     if (!data.name.trim()) {
       alert('Every conquest needs a name, my lord');
       return;
@@ -262,9 +253,6 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
       alert('Select the day of battle, great strategist');
       return;
     }
-
-    console.log('=== Submit Debug ===');
-    console.log('Form data:', data);
 
     // Helper: Convert time strings to minutes
     const convertTimeToMinutes = (timeStr) => {
@@ -276,16 +264,13 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
     const endMinutes = convertTimeToMinutes(data.endTime);
     const isOvernight = endMinutes < startMinutes;
 
-    // Create a local Date object for data.date by appending "T00:00:00"
     const selectedDate = new Date(`${data.date}T00:00:00`);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Ensure today's time is set to midnight
+    today.setHours(0, 0, 0, 0);
 
-    // If the selected date is today, check that the start time is still in the future
     if (selectedDate.getTime() === today.getTime()) {
       const now = new Date();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      console.log('Time validation:', { currentMinutes, startMinutes, isOvernight });
       if (startMinutes < currentMinutes) {
         alert(
           "O mighty conqueror, the appointed hour for your command has already slipped away into legend. Rally your forces and select a forthcoming moment for victory!"
@@ -294,14 +279,12 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
       }
     }
 
-    // Helper: Get the next day for overnight events
     const getNextDay = (currentDay) => {
       const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const currentIndex = dayOrder.indexOf(currentDay);
       return dayOrder[(currentIndex + 1) % 7];
     };
 
-    // Create the time slot object
     const timeSlot = {
       name: data.name,
       title: data.name,
@@ -318,11 +301,11 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
       expected_outcome: data.expected_outcome || '',
       strategic_value: data.strategic_value || '',
       campaign: data.campaign || null,
-      date: data.date, // Send the stored date string as-is
+      date: data.date,
       recurrence_pattern: recurrencePattern,
+      // You can also send the domain if needed
+      domain: data.domain,
     };
-
-    console.log('Submitting time slot:', timeSlot);
 
     if (typeof onSave !== 'function') {
       console.error('onSave is not a function:', onSave);
@@ -331,7 +314,6 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
 
     try {
       onSave([timeSlot]);
-      console.log('onSave called successfully');
     } catch (error) {
       console.error('Error in onSave:', error);
     }
