@@ -73,6 +73,8 @@ const StrategicDatePicker = ({
     return calendarDays;
   };
 
+  
+
   const isDateSelectable = (date) => {
     const today = startOfDay(new Date());
     const checkDate = startOfDay(date);
@@ -244,80 +246,72 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
     }));
   };
 
-  const handleSubmit = () => {
-    if (!data.name.trim()) {
-      alert('Every conquest needs a name, my lord');
-      return;
-    }
-    if (!data.date || !data.selectedDays.length) {
-      alert('Select the day of battle, great strategist');
-      return;
-    }
+// In Editor.jsx, update the handleSubmit function
+// 
+// // Add this before handleSubmit in Editor.jsx
+const getNextDay = (currentDay) => {
+  const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const currentIndex = dayOrder.indexOf(currentDay);
+  return dayOrder[(currentIndex + 1) % 7];
+}
 
-    // Helper: Convert time strings to minutes
-    const convertTimeToMinutes = (timeStr) => {
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      return (hours * 60) + minutes;
-    };
+const handleSubmit = () => {
+  if (!data.name.trim()) {
+    alert('Every conquest needs a name, my lord');
+    return;
+  }
+  if (!data.date || !data.selectedDays.length) {
+    alert('Select the day of battle, great strategist');
+    return;
+  }
 
-    const startMinutes = convertTimeToMinutes(data.startTime);
-    const endMinutes = convertTimeToMinutes(data.endTime);
-    const isOvernight = endMinutes < startMinutes;
-
-    const selectedDate = new Date(`${data.date}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (selectedDate.getTime() === today.getTime()) {
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      if (startMinutes < currentMinutes) {
-        alert(
-          "O mighty conqueror, the appointed hour for your command has already slipped away into legend. Rally your forces and select a forthcoming moment for victory!"
-        );
-        return;
-      }
-    }
-
-    const getNextDay = (currentDay) => {
-      const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const currentIndex = dayOrder.indexOf(currentDay);
-      return dayOrder[(currentIndex + 1) % 7];
-    };
-
-    const timeSlot = {
-      name: data.name,
-      title: data.name,
-      description: data.description || '',
-      importance: data.importance,
-      start_day: data.selectedDays[0],
-      end_day: isOvernight ? getNextDay(data.selectedDays[0]) : data.selectedDays[0],
-      start_time: startMinutes,
-      end_time: endMinutes,
-      color: data.color,
-      is_overnight: isOvernight,
-      frequency: recurrencePattern,
-      resources_needed: data.resources_needed || '',
-      expected_outcome: data.expected_outcome || '',
-      strategic_value: data.strategic_value || '',
-      campaign: data.campaign || null,
-      date: data.date,
-      recurrence_pattern: recurrencePattern,
-      // You can also send the domain if needed
-      domain: data.domain,
-    };
-
-    if (typeof onSave !== 'function') {
-      console.error('onSave is not a function:', onSave);
-      return;
-    }
-
-    try {
-      onSave([timeSlot]);
-    } catch (error) {
-      console.error('Error in onSave:', error);
-    }
+  const convertTimeToMinutes = (timeStr) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return (hours * 60) + minutes;
   };
+
+  const startMinutes = convertTimeToMinutes(data.startTime);
+  const endMinutes = convertTimeToMinutes(data.endTime);
+  const isOvernight = endMinutes < startMinutes;
+
+  // Create the base timeSlot
+  const timeSlot = {
+    title: data.name,
+    description: data.description || '',
+    importance: data.importance,
+    start_day: data.selectedDays[0],
+    end_day: isOvernight ? getNextDay(data.selectedDays[0]) : data.selectedDays[0],
+    start_time: startMinutes,
+    end_time: endMinutes,
+    color: data.color,
+    is_overnight: isOvernight,
+    frequency: recurrencePattern,  // Make sure this is being set correctly
+    recurrence_pattern: recurrencePattern, // Add this explicitly
+    resources_needed: data.resources_needed || '',
+    expected_outcome: data.expected_outcome || '',
+    strategic_value: data.strategic_value || '',
+    campaign: data.campaign || null,
+    date: data.date, // This is the key date that should be respected
+    domain: data.domain,
+    // Add these fields to help with recurrence
+    is_recurring: recurrencePattern !== 'none',
+    start_date: data.date,
+    end_date: null  // Could add an end date option if needed
+  };
+
+  console.log('Submitting time slot with recurrence:', {
+    date: data.date,
+    pattern: recurrencePattern,
+    frequency: timeSlot.frequency,
+    isRecurring: timeSlot.is_recurring
+  });
+
+  try {
+    onSave(timeSlot);
+  } catch (error) {
+    console.error('Error in onSave:', error);
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -369,6 +363,78 @@ export const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) 
             recurrencePattern={recurrencePattern}
             setRecurrencePattern={setRecurrencePattern}
           />
+
+          {/* Imperial Domain Selection */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              <span className="text-blue-800">Πεδίο Αριστείας</span> (Domain of Excellence)
+            </label>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                {
+                  id: 'conquest',
+                  label: 'Conquest & Battle',
+                  greekLabel: 'Κατάκτηση',
+                  icon: Sword,
+                  description: 'Path of the Warrior',
+                  color: 'from-red-500 to-red-700'
+                },
+                {
+                  id: 'cultural',
+                  label: 'Cultural Mastery',
+                  greekLabel: 'Πολιτισμός',
+                  icon: Shield,
+                  description: 'Way of Enlightenment',
+                  color: 'from-purple-500 to-purple-700'
+                },
+                {
+                  id: 'wisdom',
+                  label: 'Divine Wisdom',
+                  greekLabel: 'Σοφία',
+                  icon: Scroll,
+                  description: 'Knowledge of the Gods',
+                  color: 'from-blue-500 to-blue-700'
+                },
+                {
+                  id: 'legacy',
+                  label: 'Empire Legacy',
+                  greekLabel: 'Κληρονομιά',
+                  icon: Star,
+                  description: 'Eternal Glory',
+                  color: 'from-yellow-500 to-yellow-700'
+                }
+              ].map(({ id, label, greekLabel, icon: Icon, description, color }) => (
+                <button
+                  key={id}
+                  onClick={() => setData({ ...data, domain: id })}
+                  className={`
+                    relative p-4 rounded-lg border-2 transition-all group
+                    ${data.domain === id 
+                      ? `bg-gradient-to-r ${color} text-white border-gold-500` 
+                      : 'border-gray-200 hover:border-blue-300'
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className={`w-6 h-6 ${data.domain === id ? 'text-white' : 'text-gray-600'}`} />
+                    <div>
+                      <div className="font-semibold">{label}</div>
+                      <div className={`text-sm ${data.domain === id ? 'text-white' : 'text-gray-500'}`}>
+                        {greekLabel}
+                      </div>
+                      <div className={`text-xs ${data.domain === id ? 'text-white/80' : 'text-gray-400'}`}>
+                        {description}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`
+                    absolute inset-0 border-2 border-yellow-300 rounded-lg opacity-0
+                    ${data.domain === id ? 'animate-pulse opacity-30' : ''}
+                  `} />
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Imperial Importance Selection */}
           <div>

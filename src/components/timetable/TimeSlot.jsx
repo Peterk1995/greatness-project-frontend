@@ -1,93 +1,150 @@
-import React from 'react';
-import { Crown, Sword, Shield, Map, Scroll, Target, Compass } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Crown, Sword, Shield, Map, Scroll, Star, Clock
+} from 'lucide-react';
+
+const GreekColumn = () => (
+  <div className="absolute top-0 bottom-0 w-[6px] opacity-20">
+    <div className="h-1/5 w-full bg-gradient-to-b from-white/80 to-white/20" />
+    <div className="h-3/5 w-full bg-[repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent_2px,
+          rgba(255,255,255,0.2)_2px,
+          rgba(255,255,255,0.2)_4px
+        )]"
+    />
+    <div className="h-1/5 w-full bg-gradient-to-t from-white/80 to-white/20" />
+  </div>
+);
 
 export const TimeSlot = ({ slot, onDelete, onClick }) => {
+  const [isSelected, setIsSelected] = useState(false);
+
   if (!slot) return null;
 
-  // Get the appropriate background color based on importance
-  const getBackgroundColor = () => {
-    const colors = {
-      critical: 'bg-gradient-to-r from-purple-600 to-purple-700',
-      strategic: 'bg-gradient-to-r from-yellow-500 to-yellow-600',
-      routine: 'bg-gradient-to-r from-blue-600 to-blue-700'
-    };
-    return colors[slot.importance] || colors.routine;
+  const domainStyles = {
+    conquest: {
+      bg: 'bg-gradient-to-br from-red-800 via-red-700 to-red-900',
+      border: 'border-l-4 border-red-400'
+    },
+    cultural: {
+      bg: 'bg-gradient-to-br from-purple-800 via-purple-700 to-purple-900',
+      border: 'border-l-4 border-purple-400'
+    },
+    wisdom: {
+      bg: 'bg-gradient-to-br from-blue-800 via-blue-700 to-blue-900',
+      border: 'border-l-4 border-blue-400'
+    },
+    legacy: {
+      bg: 'bg-gradient-to-br from-amber-700 via-amber-600 to-amber-800',
+      border: 'border-l-4 border-amber-300'
+    }
   };
 
-  // Campaign-specific styling
-  const getCampaignStyle = () => {
-    if (!slot.campaign) return '';
-    
-    const styles = {
-      1: 'border-l-4 border-yellow-400',    // Conquest
-      2: 'border-l-4 border-purple-400',     // Defense
-      3: 'border-l-4 border-blue-400',       // Expedition
-      4: 'border-l-4 border-red-400',        // Territory
-      5: 'border-l-4 border-green-400',      // Diplomacy
-      default: 'border-l-4 border-yellow-400'
-    };
-    return styles[slot.campaign.id] || styles.default;
-  };
+  const style = domainStyles[slot.domain] || domainStyles.conquest;
 
-  // Campaign icons with proper coloring
-  const getCampaignIcon = () => {
-    if (!slot.campaign) return null;
-    
-    const icons = {
-      1: <Sword className="w-4 h-4 text-yellow-200" />,
-      2: <Shield className="w-4 h-4 text-purple-200" />,
-      3: <Compass className="w-4 h-4 text-blue-200" />,
-      4: <Map className="w-4 h-4 text-red-200" />,
-      5: <Scroll className="w-4 h-4 text-green-200" />,
-      default: <Crown className="w-4 h-4 text-yellow-200" />
-    };
-    return icons[slot.campaign.id] || icons.default;
+  const icons = {
+    conquest: <Sword className="w-4 h-4 text-red-200" />,
+    cultural: <Scroll className="w-4 h-4 text-purple-200" />,
+    wisdom: <Shield className="w-4 h-4 text-blue-200" />,
+    legacy: <Star className="w-4 h-4 text-amber-200" />
+  };
+  const domainIcon = icons[slot.domain] || <Crown className="w-4 h-4 text-gray-200" />;
+
+  const importanceMarkers = {
+    critical: '!!!',
+    strategic: '!!',
+    routine: '!'
+  };
+  const importance = importanceMarkers[slot.importance] || '!';
+
+  const formatTime = (timeValue) => {
+    if (typeof timeValue === 'number') {
+      const hours = Math.floor(timeValue / 60);
+      const minutes = timeValue % 60;
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+      return `${displayHours}:${String(minutes).padStart(2, '0')} ${ampm}`;
+    }
+    return timeValue;
   };
 
   return (
     <div
-      className={`h-full rounded-md shadow-md hover:shadow-lg transition-all 
-        overflow-hidden cursor-pointer backdrop-blur-sm
-        ${getBackgroundColor()} ${getCampaignStyle()}`}
-      onClick={onClick}
+      onClick={(e) => {
+        setIsSelected(!isSelected);
+        onClick?.(e);
+      }}
+      className={`
+        group relative rounded-lg shadow-xl hover:shadow-2xl transition-all
+        cursor-pointer backdrop-blur-sm overflow-hidden h-full w-full
+        ${style.bg} ${style.border}
+      `}
     >
-      <div className="p-2 h-full relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/0" />
-        <div className="relative flex justify-between items-start gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-white truncate">
-              {slot.name || slot.title}
-            </div>
-            {slot.campaign && (
-              <div className="text-xs text-yellow-200 truncate mt-0.5 font-medium">
-                {slot.campaign.title}
-              </div>
-            )}
-            {slot.importance && (
-              <div className="text-xs text-white/80 capitalize mt-0.5">
-                {slot.importance}
-              </div>
-            )}
-          </div>
-          <div className="flex-shrink-0">
-            {getCampaignIcon()}
-          </div>
-        </div>
+      <div className="absolute left-0">
+        <GreekColumn />
+      </div>
+      <div className="absolute right-0 rotate-180">
+        <GreekColumn />
       </div>
 
-      {onDelete && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center
-            rounded-full bg-black/20 text-white hover:bg-red-500 
-            hover:text-white transition-colors"
-        >
-          ×
-        </button>
-      )}
+      <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+      <div className="absolute inset-0 bg-white/5 group-hover:bg-white/10 transition-colors pointer-events-none" />
+
+      <div className="relative p-2 h-full flex flex-col gap-1">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1">
+              {domainIcon}
+              <h3 className="text-sm font-bold text-white truncate">
+                {slot.title || slot.name}
+              </h3>
+            </div>
+            <div className="flex items-center gap-1 mt-0.5 text-xs">
+              <Clock className="w-3 h-3 text-white/70" />
+              <span className="text-white/80 font-medium">
+                {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+              </span>
+            </div>
+          </div>
+          <div className="text-xs font-extrabold text-white/90">
+            {importance}
+          </div>
+        </div>
+
+        {slot.campaign && (
+          <div className="mt-1 flex items-center gap-1">
+            <Map className="w-3 h-3 text-white/60" />
+            <span className="text-[10px] text-white/80 font-medium uppercase tracking-wider">
+              {slot.campaign.title}
+            </span>
+          </div>
+        )}
+
+{isSelected && onDelete && (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      if (window.confirm('Are you sure you want to delete this event?')) {
+        onDelete?.();
+      }
+    }}
+    className="absolute bottom-2 right-2 w-8 h-8 
+               bg-black/30 hover:bg-red-500 
+               rounded-full flex items-center justify-center
+               text-white text-lg font-bold
+               transform transition-all duration-200
+               hover:scale-110 z-20"  // Added z-20 to ensure it's above other elements
+    aria-label="Delete this event"
+  >
+    ×
+  </button>
+)}
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 h-[1px]
+                      bg-gradient-to-r from-transparent via-white/20 to-transparent" />
     </div>
   );
-}
+};
