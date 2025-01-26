@@ -153,14 +153,6 @@ const CampaignsSection = ({ campaigns, fetchData }) => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {campaigns.map((campaign) => {
-            // Debug logging for each campaign
-            console.log("Campaign Debug:", {
-              title: campaign.title,
-              progress: campaign.progress,
-              status: campaign.status,
-              ready_for_completion: campaign.ready_for_completion
-            });
-
             const hoursDone = campaign.total_raw_hours
               ? Math.round(campaign.total_raw_hours)
               : Math.round((campaign.progress / 100) * campaign.estimated_hours);

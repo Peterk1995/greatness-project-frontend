@@ -1,7 +1,7 @@
 // Editor/Editor.jsx
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, parse, isValid, startOfDay } from 'date-fns';
+import { X } from 'lucide-react';
+import { format, parse, isValid } from 'date-fns';
 import StrategicDatePicker from './StrategicDatePicker';
 import TaskForm from './TaskForm';
 import DomainSelector from './DomainSelector';
@@ -33,10 +33,11 @@ const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) => {
       domain: eventData?.domain || 'conquest',
     };
   });
-  
+
   const [recurrencePattern, setRecurrencePattern] = useState('none');
   const [campaigns, setCampaigns] = useState([]);
   const [battleSessions, setBattleSessions] = useState(null);
+  const [isChronosEnabled, setIsChronosEnabled] = useState(false);
 
   useEffect(() => {
     const fetchCampaigns = async () => {
@@ -73,6 +74,7 @@ const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) => {
   };
 
   const handleSubmit = () => {
+    // Basic validation
     if (!data.name.trim()) {
       alert('Every conquest needs a name, my lord');
       return;
@@ -82,50 +84,95 @@ const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) => {
       return;
     }
 
+    // Time conversion helper
     const convertTimeToMinutes = (timeStr) => {
       const [hours, minutes] = timeStr.split(':').map(Number);
       return (hours * 60) + minutes;
     };
 
+    // Calculate time values
     const startMinutes = convertTimeToMinutes(data.startTime);
     const endMinutes = convertTimeToMinutes(data.endTime);
     const isOvernight = endMinutes < startMinutes;
 
-    // Build the timeSlot object with recurrence and other details
+    // Chronos/Battle Sessions validation and setup
+    console.log('Raw battle sessions data:', battleSessions);
+
+    const hasChronosSessions = Boolean(
+      battleSessions?.enabled &&
+      battleSessions?.sessions?.length > 0
+    );
+
+    // Get individual session details
+    const firstSession = battleSessions?.sessions?.[0];
+    const individualFocusDuration = firstSession?.focusDuration || 25;
+    const individualBreakDuration = firstSession?.breakDuration || 5;
+
+    // Validate battle sessions if enabled
+    if (battleSessions && !hasChronosSessions) {
+      alert('Battle sessions configuration is incomplete');
+      return;
+    }
+
+    // Build the timeSlot object
     const timeSlot = {
+      // Basic task info
       title: data.name,
       description: data.description || '',
       importance: data.importance,
+      color: data.color,
+      domain: data.domain,
+      campaign: data.campaign || null,
+
+      // Time and date settings
+      date: data.date,
+      start_date: data.date,
+      end_date: null,
       start_day: data.selectedDays[0],
       end_day: isOvernight ? getNextDay(data.selectedDays[0]) : data.selectedDays[0],
       start_time: startMinutes,
       end_time: endMinutes,
-      color: data.color,
       is_overnight: isOvernight,
+
+      // Recurrence settings
       frequency: recurrencePattern,
       recurrence_pattern: recurrencePattern,
+      is_recurring: recurrencePattern !== 'none',
+
+      // Strategic details
       resources_needed: data.resources_needed || '',
       expected_outcome: data.expected_outcome || '',
       strategic_value: data.strategic_value || '',
-      campaign: data.campaign || null,
-      date: data.date,
-      domain: data.domain,
-      is_recurring: recurrencePattern !== 'none',
-      start_date: data.date,
-      end_date: null, 
+
+      // Chronos/Battle sessions configuration
+      uses_chronos_cycles: hasChronosSessions,
+      battle_sessions: hasChronosSessions ? {
+        sessions: battleSessions.sessions,
+        focusDuration: individualFocusDuration,
+        breakDuration: individualBreakDuration,
+        totalSessions: battleSessions.sessions.length, // Corrected to use sessions.length
+        singleSessionDuration: battleSessions.totalFocusTime + battleSessions.totalBreakTime
+      } : null
     };
 
-    console.log('Submitting time slot with recurrence:', {
-      date: data.date,
-      pattern: recurrencePattern,
-      frequency: timeSlot.frequency,
-      isRecurring: timeSlot.is_recurring
+    // Debug logging
+    console.log('Submitting time slot:', {
+      chronos: {
+        enabled: hasChronosSessions,
+        sessionCount: battleSessions?.sessions?.length || 0,
+        focusDuration: individualFocusDuration,
+        breakDuration: individualBreakDuration,
+        singleSessionDuration: battleSessions?.singleSessionDuration || 0
+      },
+      task: timeSlot
     });
 
+    // Submit the task
     try {
       onSave(timeSlot);
     } catch (error) {
-      console.error('Error in onSave:', error);
+      console.error('Error submitting task:', error);
+      alert('Failed to create task. Please try again.');
     }
   };
 
@@ -163,23 +210,29 @@ const Editor = ({ onSave, onCancel, initialTime = 0, eventData = null }) => {
 
           {/* Battle Sessions Configuration */}
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Battle Sessions (Pomodoro)
-            </label>
-            <BattleSessionsConfig 
-              onChange={(sessions) => {
-                setBattleSessions(sessions);
-                // Example: update expected end time based on focus and rest durations
-                const totalMinutes = sessions.totalFocusTime + sessions.totalBreakTime;
-                const startTimeParts = data.startTime.split(':').map(Number);
-                const startDateTime = new Date();
-                startDateTime.setHours(startTimeParts[0], startTimeParts[1], 0);
-                const endTime = new Date(startDateTime.getTime() + totalMinutes * 60000);
-                setData(prev => ({
-                  ...prev,
-                  endTime: endTime.toTimeString().slice(0, 5)
-                }));
+            <BattleSessionsConfig
+              onChange={(sessionsData) => {
+                console.log("BattleSessionsConfig onChange received:", sessionsData);
+                setBattleSessions(sessionsData);
+                setIsChronosEnabled(Boolean(sessionsData?.enabled));
+
+                if (sessionsData && sessionsData.enabled) {
+                  const singleSessionDuration = sessionsData.singleSessionDuration;
+                  if (singleSessionDuration) {
+                    const startTimeParts = data.startTime.split(':').map(Number);
+                    const startDateTime = new Date();
+                    startDateTime.setHours(startTimeParts[0], startTimeParts[1], 0);
+                    const endTime = new Date(startDateTime.getTime() + singleSessionDuration * 60000);
+
+                    setData(prev => ({
+                      ...prev,
+                      endTime: endTime.toTimeString().slice(0, 5)
+                    }));
+                  }
+                }
               }}
+              taskStartTime={data.startTime}
+              taskEndTime={data.endTime}
             />
           </div>
         </div>

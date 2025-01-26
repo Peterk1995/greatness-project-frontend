@@ -11,6 +11,7 @@ import SkillCard from "./SkillCard";
 import WeeklyGloryOverview from "./WeeklyGloryOverview";
 import WeeklyGlorySystem from "./WeeklyGlorySystem";
 import CampaignsSection from "./CampaignSection";
+import ActiveBattle from "./ActiveBattle";
 
 export function Dashboard() {
   const [campaigns, setCampaigns] = useState([]);
@@ -31,6 +32,45 @@ export function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [unlockedAchievement, setUnlockedAchievement] = useState(null);
+
+  const findActiveChronosTasks = (tasks) => {
+    const now = new Date();
+    const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+    const today = now.toLocaleDateString('en-CA');
+  
+    console.log("Debug - Tasks:", {
+      totalTasks: tasks.length,
+      now: now.toISOString(),
+      currentTimeInMinutes,
+      today
+    });
+  
+    const chronosTasks = tasks.filter(t => {
+      const isActive = t.status === 'active';
+      const isToday = t.date === today;
+      const isInTimeWindow = t.start_time <= currentTimeInMinutes && currentTimeInMinutes <= t.end_time;
+      
+      console.log("Debug - Task Check:", {
+        taskId: t.id,
+        title: t.title,
+        usesChronos: t.uses_chronos_cycles,
+        isActive,
+        isToday,
+        isInTimeWindow,
+        taskDate: t.date,
+        startTime: t.start_time,
+        endTime: t.end_time
+      });
+  
+      return t.uses_chronos_cycles && isActive && isToday && isInTimeWindow;
+    });
+  
+    console.log("Debug - Found Chronos Tasks:", chronosTasks);
+    return chronosTasks;
+  };
+
+  const activeTask = tasks.find(t => t.uses_chronos_cycles && t.status === 'active');
+  console.log("Active Task Found:", activeTask);
 
   const getCampaignIcon = (type) => {
     switch (type) {
@@ -63,28 +103,17 @@ export function Dashboard() {
 
   const fetchData = async () => {
     try {
+      // Fetch campaigns
       const campaignsResponse = await campaignService.getAll();
       setCampaigns(campaignsResponse.data);
 
+      // Fetch user stats
       const statsResponse = await userService.getStats();
       if (statsResponse.data) {
-        const stats = statsResponse.data;
-        setUserStats({
-          conquest_level: stats.levels?.conquest || 1,
-          cultural_level: stats.levels?.cultural || 1,
-          wisdom_level: stats.levels?.wisdom || 1,
-          legacy_level: stats.levels?.legacy || 1,
-          total_level: stats.levels?.total || 1,
-          conquest_xp: stats.xp?.conquest || 0,
-          cultural_xp: stats.xp?.cultural || 0,
-          wisdom_xp: stats.xp?.wisdom || 0,
-          legacy_xp: stats.xp?.legacy || 0,
-          total_xp: stats.xp?.total || 0,
-          current_streak: stats.streak?.current || 0,
-          best_streak: stats.streak?.best || 0,
-        });
+        setUserStats(statsResponse.data);
       }
 
+      // Fetch tasks
       const tasksResponse = await taskService.getAll();
       setTasks(tasksResponse.data);
       checkAchievements(tasksResponse.data);
@@ -96,13 +125,11 @@ export function Dashboard() {
   };
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      setLoading(true);
-      await fetchData();
-      setLoading(false);
-    };
-    loadDashboard();
+    fetchData();
   }, []);
+
+
+  const activeBattleTask = findActiveChronosTasks(tasks)[0];
 
   if (loading) {
     return (
@@ -135,7 +162,6 @@ export function Dashboard() {
           {userStats.total_xp} Total XP
         </p>
       </div>
-
       {/* Skill Levels Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <SkillCard
@@ -167,6 +193,13 @@ export function Dashboard() {
           color="bg-purple-500 bg-opacity-10 text-purple-500"
         />
       </div>
+
+      {/* Active Battle (if going on) */}
+      <ActiveBattle
+        task={activeBattleTask}
+        onComplete={fetchData}
+        userStats={userStats}
+      />
 
       {/* Active Campaigns Section */}
       <CampaignsSection campaigns={campaigns} />
