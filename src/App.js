@@ -1,18 +1,12 @@
-// App.js
+// src/App.js
 import React, { useState } from 'react';
 import {
   BrowserRouter as Router,
   Route,
   Routes,
-  Navigate
+  Navigate,
 } from 'react-router-dom';
-import {
-  Trophy,
-  Calendar,
-  Shield,
-  Sword,
-  Map
-} from 'lucide-react';
+import { Trophy, Calendar, Shield, Sword, Map } from 'lucide-react';
 
 // Components
 import { TaskList } from './components/tasks/TaskList';
@@ -26,17 +20,24 @@ import { Dashboard } from './components/dashboard/Dashboard';
 import { CampaignList } from './components/campaigns/CampaignList';
 import CampaignDetail from './components/campaigns/CampaignDetail';
 import Navigation from './components/navigation/Navigation';
+import Agora from './components/agora/Agora'; // ✅ Added Agora import
+import ColdForgeMetricsDisplay from './components/agora/displayAgoraMetrics/ColdForgeMetricsDisplay';
+import NutritionDisplayMetrics from './components/agora/displayAgoraMetrics/NutritionDisplayMetrics';
+import ScriptureMetricsDisplay from './components/agora/displayAgoraMetrics/ScriptureDisplayMetrics';
+import StrengthDisplayMetrics from './components/agora/displayAgoraMetrics/StrengthDisplayMetrics';
+import CardioMetricsDisplay from './components/agora/displayAgoraMetrics/CardioDisplayMetrics';
+import PrayerDisplayMetrics from './components/agora/displayAgoraMetrics/PrayerDisplayMetrics';
+import ReadingDisplayMetrics from './components/agora/displayAgoraMetrics/ReadingDisplayMetrics';
+import FastingProtocolDisplayMetrics from './components/agora/displayAgoraMetrics/FastingProtocolDisplayMetrics'
 
-// Auth Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-
-// Services
+import { ThemeProvider } from './contexts/ThemeContext';
 import { campaignService } from './services/campaignService';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-black">
@@ -49,7 +50,7 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-  
+
   return user ? children : <Navigate to="/login" replace />;
 };
 
@@ -60,24 +61,16 @@ function AppContent() {
 
   const handleSaveCampaign = async (campaignData) => {
     try {
-      // Debug log to inspect campaign data before saving
       console.log('Creating campaign with data:', campaignData);
-      
-      // Create the campaign using the service (ensuring the status is "ongoing")
       const response = await campaignService.create({
         ...campaignData,
-        status: 'ongoing'
+        status: 'ongoing',
       });
       console.log('Campaign created successfully:', response.data);
-      
-      // Close the campaign modal
       setShowCampaignModal(false);
-
-      // If on the dashboard, refresh the page to update the campaign list
       if (window.location.pathname === '/app') {
         window.location.reload();
       }
-      
     } catch (error) {
       console.error('Error creating campaign:', error);
       alert('Failed to create campaign. Please try again.');
@@ -116,10 +109,7 @@ function AppContent() {
           path="/registration-confirmation"
           element={<RegistrationConfirmation />}
         />
-        <Route
-          path="/email-verification/:key"
-          element={<VerifyEmail />}
-        />
+        <Route path="/email-verification/:key" element={<VerifyEmail />} />
 
         {/* Protected Routes */}
         <Route
@@ -171,14 +161,98 @@ function AppContent() {
           }
         />
 
-        {/* Default Route */}
         <Route
-          path="/"
-          element={<Navigate to={user ? '/app' : '/login'} replace />}
+          path="/agora"
+          element={
+            <ProtectedRoute>
+              <div className="min-h-screen bg-gray-100">
+                <Agora />
+              </div>
+            </ProtectedRoute>
+          }
         />
-      </Routes>
-      
-      {/* Campaign Modal */}
+
+        {/* New metrics route */}
+        <Route
+          path="/metrics/cold-forge"
+          element={
+            <ProtectedRoute>
+              <ColdForgeMetricsDisplay />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/metrics/warriors-nutrition"
+          element={
+            <ProtectedRoute>
+              <NutritionDisplayMetrics />
+            </ProtectedRoute>
+          }
+          />
+
+          <Route
+            path="/metrics/virtuous-reading"
+            element={
+              <ProtectedRoute>
+                <ScriptureMetricsDisplay />
+              </ProtectedRoute>
+          }
+          />
+
+          <Route
+            path="/metrics/metrics-of-strength"
+            element={
+              <ProtectedRoute>
+                <StrengthDisplayMetrics />
+              </ProtectedRoute>
+          }
+          />
+
+          <Route
+            path="/metrics/heart-of-cardio"
+            element={
+              <ProtectedRoute>
+                <CardioMetricsDisplay />
+              </ProtectedRoute>
+          }
+          />
+
+          <Route
+            path="/metrics/prayer-wisdom"
+            element={
+              <ProtectedRoute>
+                <PrayerDisplayMetrics />
+              </ProtectedRoute>
+            }
+            />
+
+          <Route
+            path="/metrics/reading-info"
+            element={
+             <ProtectedRoute>
+              <ReadingDisplayMetrics />
+             </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/metrics/fasting-protocol-metrics"
+            element={
+              <ProtectedRoute>
+                <FastingProtocolDisplayMetrics />
+              </ProtectedRoute>
+            }
+          />
+
+
+        
+        </Routes>
+
+
+
+        
+
       {showCampaignModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <CampaignCreation
@@ -194,11 +268,13 @@ function AppContent() {
 // Root App Component with Providers
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
